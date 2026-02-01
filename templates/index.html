@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Contract Analyzer</title>
+
+<!-- Bulma CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.4/css/bulma.min.css">
+
+<!-- Axios -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<!-- Custom CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+<style>
+textarea {
+    min-height: 220px;
+}
+.chat-box {
+    border: 1px solid #444;
+    padding: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    background: #111;
+    color: #eee;
+}
+</style>
+</head>
+
+<body class="has-background-black">
+
+<div class="container" style="margin-top:50px;">
+
+    <!-- Header -->
+    <h1 class="title has-text-centered has-text-light">
+        ⚖️ AI Legal Contract Analyzer
+    </h1>
+
+    <!-- Top Right Navigation -->
+    <p class="has-text-right">
+        <a href="{{ url_for('about') }}" class="button is-info is-small">
+            About
+        </a>
+        <a href="{{ url_for('logout') }}" class="button is-danger is-small ml-2">
+            Logout
+        </a>
+    </p>
+
+    <!-- Upload Section -->
+    <div class="box has-background-dark has-text-light">
+        <form method="POST" enctype="multipart/form-data">
+
+            <div class="field">
+                <label class="label has-text-light">Upload Contract</label>
+                <div class="control">
+                    <input class="input" type="file" name="file" required>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label has-text-light">Select Language</label>
+                <div class="control">
+                    <div class="select">
+                        <select name="language">
+                            {% for code, lang in languages.items() %}
+                            <option value="{{ code }}"
+                                {% if selected_language == code %}selected{% endif %}>
+                                {{ lang }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="button is-primary">
+                Analyze Contract
+            </button>
+
+        </form>
+    </div>
+
+    <!-- Analysis Result -->
+    {% if analysis %}
+    <div class="box has-background-dark has-text-light">
+        <h2 class="subtitle has-text-light">📄 Analysis Result</h2>
+
+        <textarea readonly class="textarea">{{ analysis }}</textarea>
+
+        <form method="POST" action="{{ url_for('download') }}">
+            <input type="hidden" name="analysis_content" value="{{ analysis }}">
+            <button class="button is-link mt-3">
+                💾 Download Analysis
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Chat Section -->
+    {% if contract_text %}
+    <div class="box has-background-dark has-text-light">
+        <h2 class="subtitle has-text-light">💬 Ask a Question</h2>
+
+        <div class="chat-box" id="chat-box"></div>
+
+        <div class="field has-addons">
+            <div class="control is-expanded">
+                <input class="input" type="text" id="question"
+                       placeholder="Ask something about the contract...">
+            </div>
+            <div class="control">
+                <button class="button is-link" id="ask-btn">Ask</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- ================= CHAT SCRIPT ================= -->
+<script>
+const contractText = `{{ contract_text | replace('\n','\\n') if contract_text else '' }}`;
+const language = "{{ selected_language }}";
+
+const askBtn = document.getElementById("ask-btn");
+const questionInput = document.getElementById("question");
+const chatBox = document.getElementById("chat-box");
+
+if (askBtn) {
+    askBtn.addEventListener("click", async () => {
+        const question = questionInput.value.trim();
+        if (!question) return;
+
+        chatBox.innerHTML += `<p><b>You:</b> ${question}</p>`;
+        questionInput.value = "";
+
+        try {
+            const res = await axios.post("/ask", {
+                contract_text: contractText,
+                question: question,
+                language: language
+            });
+
+            chatBox.innerHTML += `<p><b>AI:</b> ${res.data.answer}</p>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        } catch (e) {
+            chatBox.innerHTML += `<p><b>AI:</b> Error fetching response.</p>`;
+        }
+    });
+}
+</script>
+
+</body>
+</html>
